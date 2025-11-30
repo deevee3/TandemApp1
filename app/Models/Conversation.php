@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Str;
 
 class Conversation extends Model
 {
@@ -31,6 +32,7 @@ class Conversation extends Model
         'requester_metadata',
         'case_id',
         'metadata',
+        'chat_token',
         'first_response_due_at',
         'resolution_due_at',
         'first_responded_at',
@@ -38,6 +40,23 @@ class Conversation extends Model
         'sla_status',
         'last_activity_at',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Conversation $conversation) {
+            if (empty($conversation->chat_token)) {
+                $conversation->chat_token = Str::random(32);
+            }
+        });
+    }
+
+    /**
+     * Get the public chat URL for this conversation.
+     */
+    public function getChatUrlAttribute(): string
+    {
+        return url("/chat/{$this->chat_token}");
+    }
 
     protected $casts = [
         'requester_metadata' => 'array',

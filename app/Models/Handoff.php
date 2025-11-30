@@ -22,10 +22,28 @@ class Handoff extends Model
         'policy_hits' => 'array',
         'required_skills' => 'array',
         'metadata' => 'array',
+        'created_at' => 'datetime',
     ];
 
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get a human-readable direction label.
+     */
+    public function getDirectionLabelAttribute(): string
+    {
+        return match ($this->direction) {
+            'agent_to_human' => 'Agent → Human',
+            'human_to_agent' => 'Human → Agent',
+            default => $this->direction,
+        };
     }
 }

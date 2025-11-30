@@ -7,12 +7,12 @@ use App\Models\Message;
 
 class AgentPromptBuilder
 {
-    public function build(Conversation $conversation): array
+    public function build(Conversation $conversation, string $kbContext = ''): array
     {
         $messages = [
             [
                 'role' => 'system',
-                'content' => $this->systemPrompt($conversation),
+                'content' => $this->systemPrompt($conversation, $kbContext),
             ],
         ];
 
@@ -39,9 +39,10 @@ class AgentPromptBuilder
         };
     }
 
-    protected function systemPrompt(Conversation $conversation): string
+    protected function systemPrompt(Conversation $conversation, string $kbContext = ''): string
     {
         $subject = $conversation->subject ? "Subject: {$conversation->subject}." : '';
+        $contextBlock = $kbContext ? "Use the following knowledge base articles to help answer the user:\n\n{$kbContext}" : "No relevant knowledge base articles found.";
 
         return <<<PROMPT
 You are Tandem's automated agent. Respond as JSON matching this schema exactly:
@@ -55,6 +56,7 @@ You are Tandem's automated agent. Respond as JSON matching this schema exactly:
 - Use lowercase snake_case for reason values (e.g. low_confidence, policy_flag, uncertain_intent, tool_error).
 - If you are uncertain how to proceed, set handoff to true with reason "uncertain_intent".
 {$subject}
+{$contextBlock}
 PROMPT;
     }
 }

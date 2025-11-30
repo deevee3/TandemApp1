@@ -126,12 +126,18 @@ export interface ConversationAssignment {
 
 export interface ConversationHandoff {
     id: number;
+    direction: string;
+    direction_label: string;
     reason_code: string;
     confidence?: number | null;
     policy_hits?: Record<string, unknown> | null;
     required_skills?: Record<string, unknown> | null;
     metadata?: Record<string, unknown> | null;
     created_at: string | null;
+    user: {
+        id: number;
+        name: string | null;
+    } | null;
 }
 
 export interface ConversationAuditEvent {

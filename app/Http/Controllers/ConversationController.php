@@ -27,7 +27,7 @@ class ConversationController extends Controller
                     'queue:id,name',
                 ])
                 ->orderByDesc('assigned_at'),
-            'handoffs' => fn ($query) => $query->orderByDesc('created_at'),
+            'handoffs' => fn ($query) => $query->with('user:id,name')->orderByDesc('created_at'),
             'auditEvents' => fn ($query) => $query
                 ->with(['user:id,name'])
                 ->orderByDesc('occurred_at'),
@@ -113,12 +113,18 @@ class ConversationController extends Controller
             'handoffs' => $conversation->handoffs->map(function ($handoff) {
                 return [
                     'id' => $handoff->id,
+                    'direction' => $handoff->direction,
+                    'direction_label' => $handoff->direction_label,
                     'reason_code' => $handoff->reason_code,
                     'confidence' => $handoff->confidence,
                     'policy_hits' => $handoff->policy_hits,
                     'required_skills' => $handoff->required_skills,
                     'metadata' => $handoff->metadata,
                     'created_at' => optional($handoff->created_at)->toIso8601String(),
+                    'user' => $handoff->user ? [
+                        'id' => $handoff->user->id,
+                        'name' => $handoff->user->name,
+                    ] : null,
                 ];
             })->values(),
             'auditEvents' => $conversation->auditEvents->map(function ($event) {

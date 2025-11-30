@@ -10,6 +10,7 @@ use App\Http\Resources\AssignmentResource;
 use App\Models\Assignment;
 use App\Models\Conversation;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use SM\Factory\FactoryInterface;
 
@@ -153,6 +154,55 @@ class AssignmentController extends Controller
         });
 
         return AssignmentResource::make($resolved)
+            ->response()
+            ->setStatusCode(200);
+    }
+
+    /**
+     * Reclaim a conversation that was returned to the agent.
+     */
+    public function reclaim(Request $request, Conversation $conversation): JsonResponse
+    {
+        $userId = auth()->id();
+        
+        if (!$userId) {
+            abort(401, 'Authentication required to reclaim a conversation.');
+        }
+
+        // Only allow reclaim from back_to_agent or agent_working states
+        if (!in_array($conversation->status, [Conversation::STATUS_BACK_TO_AGENT, Conversation::STATUS_AGENT_WORKING])) {
+            abort(409, 'Conversation cannot be reclaimed in its current state.');
+        }
+
+        $assignment = DB::transaction(function () use ($conversation, $userId) {
+            /** @var Conversation $lockedConversation */
+            $lockedConversation = Conversation::query()->lockForUpdate()->findOrFail($conversation->id);
+
+            $stateMachine = $this->stateMachineFactory->get($lockedConversation, 'conversation');
+
+            if (!$stateMachine->can('human_reclaim')) {
+                abort(409, 'Conversation cannot be reclaimed in its current state.');
+            }
+
+            $stateMachine->apply('human_reclaim', false, [
+                'actor_id' => $userId,
+                'assignment_user_id' => $userId,
+                'reclaimed_at' => now(),
+                'channel' => 'api',
+            ]);
+
+            // Return the new assignment
+            return Assignment::where('conversation_id', $lockedConversation->id)
+                ->where('user_id', $userId)
+                ->orderByDesc('assigned_at')
+                ->first();
+        });
+
+        if (!$assignment) {
+            abort(500, 'Failed to create assignment during reclaim.');
+        }
+
+        return AssignmentResource::make($assignment->fresh(['user.roles', 'user.skills', 'queue']))
             ->response()
             ->setStatusCode(200);
     }

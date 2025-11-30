@@ -30,8 +30,12 @@ class ConversationController extends Controller
 
         $this->touchAgent($conversation);
 
+        $conversation = $conversation->fresh(['messages']);
+        
         return response()->json([
-            'data' => $conversation->fresh(['messages'])->toArray(),
+            'data' => array_merge($conversation->toArray(), [
+                'chat_url' => $conversation->chat_url,
+            ]),
         ], 201);
     }
 

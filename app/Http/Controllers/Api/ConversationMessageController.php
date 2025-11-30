@@ -8,6 +8,7 @@ use App\Http\Requests\Api\AppendRequesterMessageRequest;
 use App\Jobs\RunAgentForConversation;
 use App\Models\Conversation;
 use App\Services\AuditLogService;
+use App\Services\WebhookDispatchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use SM\Factory\FactoryInterface;
@@ -16,7 +17,8 @@ class ConversationMessageController extends Controller
 {
     public function __construct(
         private readonly FactoryInterface $stateMachineFactory,
-        private readonly AuditLogService $auditLog
+        private readonly AuditLogService $auditLog,
+        private readonly WebhookDispatchService $webhookDispatch
     ) {
     }
 
@@ -77,6 +79,10 @@ class ConversationMessageController extends Controller
                 'subject_type' => get_class($message),
                 'subject_id' => $message->id,
             ]);
+
+            // Dispatch webhook to notify external systems (e.g., requester's platform)
+            $message->load('conversation');
+            $this->webhookDispatch->dispatchMessageCreated($message);
         }
 
         $conversation = $conversation->fresh(['messages.user', 'currentAssignment.user.roles', 'currentAssignment.user.skills']);

@@ -46,8 +46,17 @@ export default function ConversationPage() {
         return assignments.find((assignment) => assignment.status === 'human_working') ?? null;
     }, [assignments]);
 
+    const pendingAssignment = useMemo(() => {
+        return assignments.find(
+            (assignment) => assignment.status === 'assigned' && assignment.user?.id === authenticatedUserId
+        ) ?? null;
+    }, [assignments, authenticatedUserId]);
+
+    const canStartWorking = conversation.status === 'assigned' && Boolean(pendingAssignment);
+
     const canReturnToAgent = conversation.status === 'human_working' && Boolean(activeAssignment);
     const canResolve = conversation.status === 'human_working' || conversation.status === 'agent_working';
+    const canReclaim = conversation.status === 'back_to_agent' || conversation.status === 'agent_working';
 
     const canReply = useMemo(() => {
         // Must have active assignment
@@ -75,6 +84,12 @@ export default function ConversationPage() {
     const [messageContent, setMessageContent] = useState('');
     const [messageSending, setMessageSending] = useState(false);
     const [messageError, setMessageError] = useState<string | null>(null);
+
+    const [startWorkingSubmitting, setStartWorkingSubmitting] = useState(false);
+    const [startWorkingError, setStartWorkingError] = useState<string | null>(null);
+
+    const [reclaimSubmitting, setReclaimSubmitting] = useState(false);
+    const [reclaimError, setReclaimError] = useState<string | null>(null);
 
     const resetReleaseForm = useCallback(() => {
         setReleaseActorId(defaultActorId);
@@ -192,6 +207,73 @@ export default function ConversationPage() {
         }
     }, [agentToken, conversation.id, refreshConversation, resolveActorId, resolveSummary, resetResolveForm]);
 
+    const handleStartWorking = useCallback(async () => {
+        if (!pendingAssignment) {
+            setStartWorkingError('No pending assignment to accept.');
+            return;
+        }
+
+        setStartWorkingSubmitting(true);
+        setStartWorkingError(null);
+
+        try {
+            const route = Api.AssignmentController.accept({ assignment: pendingAssignment.id });
+            const headers = new Headers(createQueueItemsHeaders(agentToken));
+            headers.set('Accept', 'application/json');
+
+            const payload = {
+                actor_id: authenticatedUserId,
+            };
+
+            const response = await fetch(route.url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data?.message ?? 'Failed to start working on conversation.');
+            }
+
+            await refreshConversation();
+        } catch (error) {
+            setStartWorkingError((error as Error).message);
+        } finally {
+            setStartWorkingSubmitting(false);
+        }
+    }, [pendingAssignment, agentToken, authenticatedUserId, refreshConversation]);
+
+    const handleReclaim = useCallback(async () => {
+        setReclaimSubmitting(true);
+        setReclaimError(null);
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            const response = await fetch(`/api/conversations/${conversation.id}/reclaim`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken || '',
+                },
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data?.message ?? 'Failed to reclaim conversation.');
+            }
+
+            await refreshConversation();
+        } catch (error) {
+            setReclaimError((error as Error).message);
+        } finally {
+            setReclaimSubmitting(false);
+        }
+    }, [conversation.id, refreshConversation]);
+
     const handleSendMessage = useCallback(async () => {
         if (messageContent.trim() === '') {
             setMessageError('Message content cannot be empty.');
@@ -258,6 +340,14 @@ export default function ConversationPage() {
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        {canStartWorking && (
+                            <Button
+                                disabled={startWorkingSubmitting}
+                                onClick={() => void handleStartWorking()}
+                            >
+                                {startWorkingSubmitting ? 'Starting...' : 'Start Working'}
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             disabled={!canReturnToAgent || releaseSubmitting}
@@ -277,7 +367,22 @@ export default function ConversationPage() {
                         >
                             Resolve Conversation
                         </Button>
+                        {canReclaim && (
+                            <Button
+                                variant="secondary"
+                                disabled={reclaimSubmitting}
+                                onClick={() => void handleReclaim()}
+                            >
+                                {reclaimSubmitting ? 'Reclaiming...' : 'Reclaim from Agent'}
+                            </Button>
+                        )}
                     </div>
+                    {startWorkingError && (
+                        <p className="text-sm text-red-600 dark:text-red-400">{startWorkingError}</p>
+                    )}
+                    {reclaimError && (
+                        <p className="text-sm text-red-600 dark:text-red-400">{reclaimError}</p>
+                    )}
                 </header>
 
                 <main className="grid gap-4 lg:grid-cols-[2fr_1fr]">
@@ -448,20 +553,42 @@ export default function ConversationPage() {
                                 <ul className="mt-2 space-y-3 text-sm text-neutral-700 dark:text-neutral-300">
                                     {handoffs.map((handoff) => (
                                         <li key={handoff.id} className="rounded-lg bg-neutral-100 p-3 dark:bg-neutral-900">
-                                            <p className="font-medium text-neutral-800 dark:text-neutral-100">
-                                                Reason: {handoff.reason_code.replace('_', ' ')}
-                                            </p>
-                                            <div className="mt-2 grid gap-1 text-xs text-neutral-500 dark:text-neutral-400">
-                                                <span>Confidence: {handoff.confidence ?? '—'}</span>
-                                                <span>Created: {handoff.created_at ? new Date(handoff.created_at).toLocaleString() : '—'}</span>
+                                            <div className="flex items-center justify-between">
+                                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                    handoff.direction === 'agent_to_human' 
+                                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                                        : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                                                }`}>
+                                                    {handoff.direction_label}
+                                                </span>
+                                                <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                    {handoff.created_at ? new Date(handoff.created_at).toLocaleString() : '—'}
+                                                </span>
                                             </div>
-                                            {(handoff.policy_hits || handoff.required_skills || handoff.metadata) && (
-                                                <pre className="mt-2 overflow-x-auto rounded bg-neutral-100 p-2 text-xs text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300">
+                                            <p className="mt-2 font-medium text-neutral-800 dark:text-neutral-100">
+                                                {handoff.reason_code.replace(/_/g, ' ')}
+                                            </p>
+                                            {handoff.user && (
+                                                <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
+                                                    Initiated by: {handoff.user.name}
+                                                </p>
+                                            )}
+                                            {!handoff.user && handoff.direction === 'agent_to_human' && (
+                                                <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
+                                                    Initiated by: AI Agent
+                                                </p>
+                                            )}
+                                            {handoff.confidence !== null && handoff.confidence !== undefined && (
+                                                <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
+                                                    Confidence: {(handoff.confidence * 100).toFixed(0)}%
+                                                </p>
+                                            )}
+                                            {(handoff.policy_hits || handoff.required_skills) && (
+                                                <pre className="mt-2 overflow-x-auto rounded bg-neutral-200 p-2 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
                                                     {JSON.stringify(
                                                         {
-                                                            policy_hits: handoff.policy_hits,
-                                                            required_skills: handoff.required_skills,
-                                                            metadata: handoff.metadata,
+                                                            ...(handoff.policy_hits && { policy_hits: handoff.policy_hits }),
+                                                            ...(handoff.required_skills && { required_skills: handoff.required_skills }),
                                                         },
                                                         null,
                                                         2,

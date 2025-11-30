@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Jobs\RunAgentForConversation;
+use App\Models\Assignment;
 use App\Models\Conversation;
+use App\Models\Handoff;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -13,10 +15,12 @@ use Sebdesign\SM\Event\TransitionEvent;
 class ConversationLifecycleService
 {
     private SLAService $slaService;
+    private WebhookDispatchService $webhookDispatch;
 
-    public function __construct(SLAService $slaService)
+    public function __construct(SLAService $slaService, WebhookDispatchService $webhookDispatch)
     {
         $this->slaService = $slaService;
+        $this->webhookDispatch = $webhookDispatch;
     }
 
     public function afterAgentBegins(TransitionEvent $event): void
@@ -41,10 +45,11 @@ class ConversationLifecycleService
             throw new InvalidArgumentException('Missing reason_code when triggering handoff_required transition.');
         }
 
-        DB::table('handoffs')->updateOrInsert([
+        $handoffId = DB::table('handoffs')->insertGetId([
             'conversation_id' => $conversation->id,
+            'direction' => 'agent_to_human',
+            'user_id' => null, // AI-initiated
             'reason_code' => $reason,
-        ], [
             'confidence' => Arr::get($context, 'confidence'),
             'policy_hits' => $this->encodeNullableArray($context, 'policy_hits'),
             'required_skills' => $this->encodeNullableArray($context, 'required_skills'),
@@ -57,6 +62,11 @@ class ConversationLifecycleService
             'reason_code' => $reason,
             'confidence' => Arr::get($context, 'confidence'),
         ]);
+
+        // Dispatch webhook
+        if ($handoff = Handoff::find($handoffId)) {
+            $this->webhookDispatch->dispatchHandoffCreated($handoff);
+        }
     }
 
     public function afterEnqueueForHuman(TransitionEvent $event): void
@@ -113,7 +123,7 @@ class ConversationLifecycleService
                 'updated_at' => $assignedAt,
             ]);
 
-        DB::table('assignments')->insert([
+        $assignmentId = DB::table('assignments')->insertGetId([
             'conversation_id' => $conversation->id,
             'queue_id' => $queueId,
             'user_id' => $userId,
@@ -132,6 +142,11 @@ class ConversationLifecycleService
             'queue_id' => $queueId,
             'user_id' => $userId,
         ]);
+
+        // Dispatch webhook
+        if ($assignment = Assignment::find($assignmentId)) {
+            $this->webhookDispatch->dispatchAssignmentCreated($assignment);
+        }
     }
 
     public function afterHumanAccepts(TransitionEvent $event): void
@@ -193,12 +208,92 @@ class ConversationLifecycleService
                 'updated_at' => $releasedAt,
             ]);
 
+        // Record the handoff (human → agent)
+        $handoffId = DB::table('handoffs')->insertGetId([
+            'conversation_id' => $conversation->id,
+            'direction' => 'human_to_agent',
+            'user_id' => $userId,
+            'reason_code' => Arr::get($context, 'release_reason', 'return_to_agent'),
+            'confidence' => null,
+            'policy_hits' => null,
+            'required_skills' => null,
+            'metadata' => json_encode([
+                'release_reason' => Arr::get($context, 'release_reason'),
+                'initiated_by' => 'human',
+            ]),
+            'created_at' => $releasedAt,
+        ]);
+
         $this->touchConversation($conversation, $event, $context);
         $this->recordAudit($conversation, $event, [
             'user_id' => $userId,
         ]);
 
+        // Dispatch webhook
+        if ($handoff = Handoff::find($handoffId)) {
+            $this->webhookDispatch->dispatchHandoffCreated($handoff);
+        }
+
         RunAgentForConversation::dispatch($conversation->id);
+    }
+
+    public function afterHumanReclaim(TransitionEvent $event): void
+    {
+        $conversation = $this->refreshConversation($event);
+        $context = $event->getContext();
+
+        $userId = Arr::get($context, 'assignment_user_id');
+        if (! $userId) {
+            throw new InvalidArgumentException('Missing assignment_user_id when triggering human_reclaim transition.');
+        }
+
+        $reclaimedAt = $this->resolveTimestamp($context, 'reclaimed_at');
+
+        // Get the default queue or previous queue
+        $previousAssignment = $this->latestAssignment($conversation->id);
+        $queueId = $previousAssignment?->queue_id ?? DB::table('queues')->where('is_default', true)->value('id') ?? DB::table('queues')->orderBy('id')->value('id');
+
+        // Create new assignment directly in human_working status
+        DB::table('assignments')->insert([
+            'conversation_id' => $conversation->id,
+            'queue_id' => $queueId,
+            'user_id' => $userId,
+            'assigned_at' => $reclaimedAt,
+            'accepted_at' => $reclaimedAt,
+            'released_at' => null,
+            'resolved_at' => null,
+            'status' => 'human_working',
+            'metadata' => json_encode(['reclaimed' => true]),
+            'created_at' => $reclaimedAt,
+            'updated_at' => $reclaimedAt,
+        ]);
+
+        // Record the handoff (human reclaims from agent)
+        $handoffId = DB::table('handoffs')->insertGetId([
+            'conversation_id' => $conversation->id,
+            'direction' => 'agent_to_human',
+            'user_id' => $userId,
+            'reason_code' => 'human_reclaim',
+            'confidence' => null,
+            'policy_hits' => null,
+            'required_skills' => null,
+            'metadata' => json_encode([
+                'initiated_by' => 'human',
+                'reclaimed' => true,
+            ]),
+            'created_at' => $reclaimedAt,
+        ]);
+
+        $this->touchConversation($conversation, $event, $context);
+        $this->recordAudit($conversation, $event, [
+            'user_id' => $userId,
+            'queue_id' => $queueId,
+        ]);
+
+        // Dispatch webhook
+        if ($handoff = Handoff::find($handoffId)) {
+            $this->webhookDispatch->dispatchHandoffCreated($handoff);
+        }
     }
 
     public function afterResolve(TransitionEvent $event): void
@@ -234,6 +329,12 @@ class ConversationLifecycleService
             'user_id' => $userId,
             'summary' => Arr::get($context, 'resolution_summary'),
         ]);
+
+        // Dispatch webhook
+        $this->webhookDispatch->dispatchConversationResolved(
+            $conversation,
+            Arr::get($context, 'resolution_summary')
+        );
     }
 
     public function afterArchive(TransitionEvent $event): void

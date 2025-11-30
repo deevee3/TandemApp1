@@ -26,4 +26,5 @@ Route::middleware(['auth.apikey'])->group(function () {
 // Use 'web' middleware group to enable session support for authentication
 Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/conversations/{conversation}/human-messages', [ConversationMessageController::class, 'storeHumanMessage']);
+    Route::post('/conversations/{conversation}/reclaim', [AssignmentController::class, 'reclaim']);
 });

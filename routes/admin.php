@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\HandoffPolicyController;
+use App\Http\Controllers\Admin\KbArticleController;
 use App\Http\Controllers\Admin\QueueController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SkillController;
@@ -107,6 +108,11 @@ Route::middleware([
         return Inertia::render('admin/handoff-policies/index');
     })->name('handoff-policies.index');
 
+    // AI Persona Management
+    Route::get('/persona', function () {
+        return Inertia::render('admin/persona/index');
+    })->name('persona.index');
+
     Route::prefix('api/handoff-policies')->name('api.handoff-policies.')->group(function () {
         Route::get('/', [HandoffPolicyController::class, 'index'])->name('index');
         Route::post('/', [HandoffPolicyController::class, 'store'])->name('store');
@@ -163,5 +169,15 @@ Route::middleware([
         Route::prefix('api/audit-logs')->name('api.audit-logs.')->group(function () {
             Route::get('/', [AuditLogController::class, 'index'])->name('index');
         });
+    });
+
+    // Knowledge Base Management
+    Route::get('/kb', [KbArticleController::class, 'index'])->name('kb.index');
+    Route::prefix('kb')->name('kb.')->group(function () {
+        Route::post('/', [KbArticleController::class, 'store'])->name('store');
+        Route::put('/{kb_article}', [KbArticleController::class, 'update'])->name('update');
+        Route::delete('/{kb_article}', [KbArticleController::class, 'destroy'])->name('destroy');
+        Route::post('/{kb_article}/reindex', [KbArticleController::class, 'reindex'])->name('reindex');
+        Route::post('/search', [KbArticleController::class, 'search'])->name('search');
     });
 });

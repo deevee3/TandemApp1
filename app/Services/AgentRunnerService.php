@@ -23,13 +23,25 @@ class AgentRunnerService
     public function __construct(
         private readonly AgentPromptBuilder $promptBuilder,
         private readonly OpenAIClient $client,
+        private readonly KnowledgeService $knowledgeService,
     )
     {
     }
 
     public function run(Conversation $conversation): AgentRunResult
     {
-        $payload = $this->buildPayload($conversation);
+        // Retrieve relevant KB articles
+        $lastMessage = $conversation->messages()->where('sender_type', 'requester')->latest()->first();
+        $kbContext = '';
+        
+        if ($lastMessage) {
+            $articles = $this->knowledgeService->search($lastMessage->content, 3, 0.4);
+            if ($articles->isNotEmpty()) {
+                $kbContext = $articles->map(fn ($a) => "Title: {$a->title}\nContent: {$a->content}")->join("\n\n");
+            }
+        }
+
+        $payload = $this->buildPayload($conversation, $kbContext);
 
         try {
             $response = $this->client->chatCompletion($payload);
@@ -48,9 +60,9 @@ class AgentRunnerService
         return AgentRunResult::success($this->normalizeOutput($output));
     }
 
-    protected function buildPayload(Conversation $conversation): array
+    protected function buildPayload(Conversation $conversation, string $kbContext = ''): array
     {
-        $messages = $this->promptBuilder->build($conversation);
+        $messages = $this->promptBuilder->build($conversation, $kbContext);
 
         return [
             'model' => $this->model(),

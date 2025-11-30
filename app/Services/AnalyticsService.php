@@ -73,7 +73,7 @@ class AnalyticsService
             ->count();
 
         $handoffConversations = DB::table('audit_events')
-            ->where('event_type', 'conversation.human_working')
+            ->where('event_type', 'conversation.handoff_required')
             ->whereBetween('occurred_at', [$startDate, $endDate])
             ->distinct('conversation_id')
             ->count('conversation_id');

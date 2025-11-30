@@ -24,6 +24,15 @@ class OpenAIClient
         }
     }
 
+    public function embeddings(array $payload): array
+    {
+        try {
+            return $this->request()->post('embeddings', $payload)->throw()->json();
+        } catch (ConnectionException|RequestException $exception) {
+            throw $exception;
+        }
+    }
+
     protected function request(): PendingRequest
     {
         $apiKey = (string) Config::get('services.openai.api_key');

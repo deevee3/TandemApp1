@@ -7,6 +7,7 @@ type AgentAuthState = {
     token: string | null;
     expiresAt: string | null;
     issuedAt: string | null;
+    chatUrl: string | null;
     loading: boolean;
     error: string | null;
     submit: () => Promise<void>;
@@ -16,10 +17,12 @@ type AgentAuthState = {
 const storageKey = 'agentAuth.token';
 const storageExpiryKey = 'agentAuth.expiresAt';
 const storageIssuedAtKey = 'agentAuth.issuedAt';
+const storageChatUrlKey = 'agentAuth.chatUrl';
 
 type AgentTokenMeta = {
     expires_at: string | null;
     issued_at?: string | null;
+    chat_url?: string | null;
 };
 
 const AgentAuthContext = createContext<AgentAuthState | undefined>(undefined);
@@ -61,6 +64,18 @@ export function AgentAuthProvider({ children, initialMeta = null }: { children: 
 
         return initialMeta?.issued_at ?? null;
     });
+    const [chatUrl, setChatUrl] = useState<string | null>(() => {
+        if (typeof window === 'undefined') {
+            return initialMeta?.chat_url ?? null;
+        }
+
+        const stored = window.localStorage.getItem(storageChatUrlKey);
+        if (stored) {
+            return stored;
+        }
+
+        return initialMeta?.chat_url ?? null;
+    });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -100,6 +115,18 @@ export function AgentAuthProvider({ children, initialMeta = null }: { children: 
         }
     }, [issuedAt]);
 
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        if (chatUrl) {
+            window.localStorage.setItem(storageChatUrlKey, chatUrl);
+        } else {
+            window.localStorage.removeItem(storageChatUrlKey);
+        }
+    }, [chatUrl]);
+
     const hydrateFromMeta = useCallback((meta: AgentTokenMeta | null | undefined) => {
         if (!meta) {
             return;
@@ -131,6 +158,20 @@ export function AgentAuthProvider({ children, initialMeta = null }: { children: 
             window.localStorage.setItem(storageIssuedAtKey, meta.issued_at);
 
             return meta.issued_at;
+        });
+
+        setChatUrl((previous) => {
+            if (!meta.chat_url) {
+                return previous;
+            }
+
+            if (previous === meta.chat_url) {
+                return previous;
+            }
+
+            window.localStorage.setItem(storageChatUrlKey, meta.chat_url);
+
+            return meta.chat_url;
         });
     }, []);
 
@@ -184,6 +225,7 @@ export function AgentAuthProvider({ children, initialMeta = null }: { children: 
             setToken(payload.access_token ?? null);
             setExpiresAt(payload.expires_at ?? null);
             setIssuedAt(payload.issued_at ?? null);
+            setChatUrl(payload.chat_url ?? null);
             if (payload.expires_at) {
                 window.localStorage.setItem(storageExpiryKey, payload.expires_at);
             }
@@ -193,16 +235,21 @@ export function AgentAuthProvider({ children, initialMeta = null }: { children: 
             if (payload.access_token) {
                 window.localStorage.setItem(storageKey, payload.access_token);
             }
+            if (payload.chat_url) {
+                window.localStorage.setItem(storageChatUrlKey, payload.chat_url);
+            }
         } catch (caught) {
             const err = caught as Error;
             setToken(null);
             setExpiresAt(null);
             setIssuedAt(null);
+            setChatUrl(null);
             setError(err.message);
             if (typeof window !== 'undefined') {
                 window.localStorage.removeItem(storageKey);
                 window.localStorage.removeItem(storageExpiryKey);
                 window.localStorage.removeItem(storageIssuedAtKey);
+                window.localStorage.removeItem(storageChatUrlKey);
             }
         } finally {
             setLoading(false);
@@ -213,11 +260,13 @@ export function AgentAuthProvider({ children, initialMeta = null }: { children: 
         setToken(null);
         setExpiresAt(null);
         setIssuedAt(null);
+        setChatUrl(null);
         setError(null);
         if (typeof window !== 'undefined') {
             window.localStorage.removeItem(storageKey);
             window.localStorage.removeItem(storageExpiryKey);
             window.localStorage.removeItem(storageIssuedAtKey);
+            window.localStorage.removeItem(storageChatUrlKey);
         }
     }, []);
 
@@ -225,11 +274,12 @@ export function AgentAuthProvider({ children, initialMeta = null }: { children: 
         token,
         expiresAt,
         issuedAt,
+        chatUrl,
         loading,
         error,
         submit,
         clear,
-    }), [token, expiresAt, issuedAt, loading, error, submit, clear]);
+    }), [token, expiresAt, issuedAt, chatUrl, loading, error, submit, clear]);
 
     return createElement(AgentAuthContext.Provider, { value }, children);
 }
