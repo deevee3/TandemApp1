@@ -29,6 +29,7 @@ Sales qualification: AI captures lead details; hands off for price or objections
  In scope (MVP)
 Web app with login and RBAC (Admin, Human Agent, Supervisor).
 REST API to start conversations and post messages.
+**Requester Chat Portal: Shareable link for direct customer conversations (no external integration required).**
 Single agent provider using OpenAI API (target model GPT-5 when available; fallback GPT-4o/4.1).
 Rules-based handoff (confidence, policy flags, tool error, SLA risk).
 Queues, assignments, skills routing, round-robin fallback.
@@ -37,8 +38,9 @@ Human console: inbox, conversation view, reply, resolve, return to agent.
 Audit logging and downloadable transcript.
 Basic analytics (handoff rate, time-to-first-response, time-to-resolution).
 Embedded database (SQLite with WAL).
+Webhook event dispatch for message.created, handoff.created, conversation.resolved.
  Later (post-MVP)
-Email/Slack channels, attachments, KB authoring UI, QA scoring rubrics, sampling plans, multi-tenant SaaS, SSO, webhooks management UI, redaction UI, dashboards 2.0, real-time websockets.
+Embeddable chat widget (JavaScript), Email/Slack channels, attachments, KB authoring UI, QA scoring rubrics, sampling plans, multi-tenant SaaS, SSO, webhooks management UI, redaction UI, dashboards 2.0, real-time websockets.
  Success metrics (12 weeks post-launch)
  Handoff accuracy: ≥90% of handoffs occur for valid reasons (low confidence/policy/tool/SLA).
 Time to first response: ≤15 seconds (agent) median.
@@ -82,6 +84,38 @@ FR-14 Return-to-agent loop
 Human can return control to agent with notes that seed next agent run.
 FR-15 Policy packs and redaction (MVP light)
 Flag PII terms (regex list). Option to mask before storing. Store policy hits in metadata.
+
+FR-16 Requester Chat Portal (MVP)
+**Purpose:** Allow requesters to interact directly via a shareable link—no external system integration required for basic usage.
+
+**Chat Link Generation:**
+- Every conversation has a unique, secure `chat_token` (UUID or signed URL).
+- Link format: `https://app.example.com/chat/{chat_token}`
+- Token is returned when conversation is created via API.
+- Admins can regenerate or revoke tokens.
+
+**Requester Chat Page:**
+- Public page (no login required) that shows:
+  - Conversation subject/context
+  - Full message transcript (agent, human, requester messages)
+  - Input field to send new messages
+  - Status indicator (e.g., "AI is responding...", "Waiting for human agent", "Resolved")
+- Auto-refresh every 3-5 seconds (polling) to show new messages.
+- Mobile-responsive design.
+
+**Security:**
+- Chat tokens are cryptographically random (128-bit minimum).
+- Rate limiting on message submission (e.g., 10 messages/minute).
+- Optional: Token expiry after conversation resolved + N days.
+- No access to other conversations or admin functions.
+
+**Use Cases:**
+- Support agent creates ticket via API → sends chat link to customer via email/SMS.
+- Website "Contact Us" form creates conversation → redirects to chat page.
+- Internal tool generates link for employee to discuss HR issue.
+
+FR-17 Embeddable Chat Widget (Post-MVP)
+JavaScript widget that can be embedded on any website. Inherits FR-16 functionality with customizable branding.
  Non-functional requirements (NFR)
  Performance: API P50 < 200 ms for CRUD; agent round-trip P50 < 6s (model dependent).
 Concurrency: 50 simultaneous conversations on SQLite (WAL) without contention. Clear upgrade path to Postgres.
@@ -235,9 +269,74 @@ All data persists in the embedded database; backup script runs and is verified.
 | FR-9 Audit exports | **Not started** | Audit table lacks export endpoints/utilities. | Build JSON/CSV export endpoints with filters, add download UI + authorization. |
 | FR-10 Analytics & reporting acceptance criteria | **Not started** | Dashboard placeholder; no metrics queries or charts. | Define reporting queries, expose API, render charts for handoff rate, TTR, SLA compliance. |
 | FR-11 Admin settings coverage | **Not started** | No UI/API for thresholds, webhooks, policy packs beyond CRUD. | Extend admin settings pages + endpoints for guardrails, webhooks, skills, policy packs. |
-| FR-12 Webhooks | **Not started** | No event dispatch for message/handoff/assignment updates. | Implement webhook subscription model + queued dispatchers, add delivery retries + tests. |
+| FR-12 Webhooks | **Partial** | Dispatch service created; needs testing and admin UI for subscriptions. | Test webhook delivery, add retry monitoring, wire remaining events. |
 | FR-15 Policy packs & redaction | **Not started** | No regex policy storage or masking before persistence. | Create policy store, integrate redaction pipeline before saving content, log policy hits. |
+| FR-16 Requester Chat Portal | **Not started** | No chat token, no public chat page. | Add chat_token to conversations, create public chat route + React page, implement polling. |
 | Observability / monitoring (NFR) | **Not started** | No health endpoint, metrics, or log rotation config. | Add `/health` endpoint, structured logging/rotation, basic queue & SLA metrics. |
+
+## Minimal Viable Customer Service Flow
+
+**Goal:** Get a working end-to-end demo where a customer can chat with AI, get handed off to a human, and receive replies—all through a single shareable link.
+
+### What's Required
+
+| Component | Status | What's Needed |
+| --- | --- | --- |
+| **1. Chat Token on Conversations** | Not started | Add `chat_token` column (UUID), generate on create, return in API response. |
+| **2. Public Chat Page** | Not started | React page at `/chat/{token}` showing transcript + input. Polls for updates. |
+| **3. AI Agent Runner** | Partial (service exists) | Wire `RunAgentForConversation` job to actually call OpenAI and store response. Currently stubbed. |
+| **4. Handoff Trigger** | Partial | Agent runner needs to evaluate response and trigger handoff when confidence < threshold. |
+| **5. Human Reply Flow** | **Done** | Human can claim, start working, and reply. Message stored and audit logged. |
+| **6. Message Delivery** | **Done** | Webhook dispatch on `message.created`. Chat page polling makes this work without webhooks too. |
+
+### Minimal Implementation Plan
+
+**Phase 1: Chat Portal (1-2 days)**
+1. Migration: Add `chat_token` (UUID) to `conversations` table.
+2. Update conversation creation to generate token and return chat URL.
+3. Create `/chat/{token}` route (public, no auth).
+4. Build simple React chat page with polling.
+
+**Phase 2: Working AI (1-2 days)**
+1. Implement `AgentRunnerService.run()` to call OpenAI with conversation context.
+2. Parse structured response (content, confidence, handoff flag).
+3. Store AI message, update conversation status.
+4. If handoff needed, trigger handoff flow.
+
+**Phase 3: Polish (1 day)**
+1. Add typing indicators / loading states.
+2. Status messages ("Connecting you to a human...", "Resolved").
+3. Basic rate limiting on chat page.
+
+### API Flow for External Integrations
+
+```
+1. External system creates conversation:
+   POST /api/conversations
+   { "subject": "Help request", "requester_identifier": "customer@email.com" }
+   
+   Response includes:
+   { "id": 123, "chat_token": "abc-123-def", "chat_url": "https://app.com/chat/abc-123-def" }
+
+2. External system sends chat_url to customer (email, SMS, in-app).
+
+3. Customer opens link, sees AI response, can reply.
+
+4. If handoff occurs, human agent replies via admin UI.
+
+5. Customer sees human reply on same chat page (via polling).
+
+6. (Optional) External system subscribes to webhooks for real-time updates.
+```
+
+### Environment Variables for AI
+
+```env
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o          # or gpt-4-turbo, gpt-3.5-turbo
+OPENAI_MAX_TOKENS=1024
+AGENT_CONFIDENCE_THRESHOLD=0.7  # handoff if confidence < this
+```
 
  Future enhancements
  Multi-tenant SaaS with per-tenant isolation and billing.

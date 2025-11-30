@@ -37,6 +37,10 @@ return [
                 'from' => [Conversation::STATUS_HUMAN_WORKING],
                 'to' => Conversation::STATUS_BACK_TO_AGENT,
             ],
+            'human_reclaim' => [
+                'from' => [Conversation::STATUS_BACK_TO_AGENT, Conversation::STATUS_AGENT_WORKING],
+                'to' => Conversation::STATUS_HUMAN_WORKING,
+            ],
             'resolve' => [
                 'from' => [Conversation::STATUS_AGENT_WORKING, Conversation::STATUS_HUMAN_WORKING],
                 'to' => Conversation::STATUS_RESOLVED,
@@ -73,6 +77,10 @@ return [
                 'after_return_to_agent' => [
                     'on' => 'return_to_agent',
                     'do' => ConversationLifecycleService::class.'@afterReturnToAgent',
+                ],
+                'after_human_reclaim' => [
+                    'on' => 'human_reclaim',
+                    'do' => ConversationLifecycleService::class.'@afterHumanReclaim',
                 ],
                 'after_resolve' => [
                     'on' => 'resolve',

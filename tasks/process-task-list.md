@@ -223,6 +223,23 @@ When working with task lists, the AI must:
   - [ ] Add webhook test endpoint
   - [ ] Add delivery verification
 
+#### FR-16: Knowledge Base (MVP)
+- [x] Database & Models
+  - [x] Create kb_articles table migration (title, content, status, embedding, tags)
+  - [x] Create KbArticle model with casts
+  - [x] Create KbArticle factory and seeder
+- [x] Knowledge Service (RAG)
+  - [x] Create KnowledgeService class
+  - [x] Implement embedding generation (using OpenAI text-embedding-3-small)
+  - [x] Implement cosine similarity search
+  - [x] Add background job for generating embeddings on save
+- [x] Admin UI
+  - [x] Build KB articles CRUD UI
+  - [x] Add manual re-index button
+  - [x] Add search testing tool
+- [x] Agent Integration
+  - [x] Inject relevant KB articles into AgentRunner system prompt
+
 #### FR-15: Policy Packs & Redaction
 - [ ] Policy Pack Storage
   - [ ] Create policy_packs table migration
@@ -321,3 +338,12 @@ When working with task lists, the AI must:
 - `Shovel/app/Http/Resources/QueueResource.php` – Queue API resource for consistent JSON responses
 - `Shovel/resources/js/pages/admin/queues/index.tsx` – Queues management UI with table, search, CRUD dialogs, default queue indicator, and skill requirements checkboxes
 - `Shovel/tests/Feature/QueueCrudTest.php` – Comprehensive test suite for queues CRUD operations (9 tests)
+- `Shovel/app/Models/KbArticle.php` – KB Article model with status enum and embedding cast
+- `Shovel/database/migrations/2025_11_30_174101_create_kb_articles_table.php` – KB Articles table schema
+- `Shovel/database/seeders/KbArticleSeeder.php` – Seeder for sample KB articles
+- `Shovel/app/Services/KnowledgeService.php` – Service for OpenAI embeddings and cosine similarity search
+- `Shovel/app/Jobs/GenerateArticleEmbedding.php` – Job to asynchronously generate embeddings
+- `Shovel/app/Http/Controllers/Admin/KbArticleController.php` – Controller for KB CRUD, search, and re-indexing
+- `Shovel/resources/js/pages/admin/kb/index.tsx` – Admin UI for managing articles and testing search
+- `Shovel/app/Services/AgentRunnerService.php` – Updated to inject KB context into prompt
+- `Shovel/app/Services/AgentPromptBuilder.php` – Updated to include context block in system prompt
