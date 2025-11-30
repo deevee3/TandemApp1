@@ -122,33 +122,29 @@ Route::middleware([
     });
 
     // API Keys Management
-    Route::middleware('permission:api-keys.manage')->group(function () {
-        Route::get('/api-keys', function () {
-            return Inertia::render('admin/api-keys/index');
-        })->name('api-keys.index');
+    Route::get('/api-keys', function () {
+        return Inertia::render('admin/api-keys/index');
+    })->name('api-keys.index');
 
-        Route::prefix('api/api-keys')->name('api.api-keys.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Admin\ApiKeyController::class, 'index'])->name('index');
-            Route::post('/', [\App\Http\Controllers\Admin\ApiKeyController::class, 'store'])->name('store');
-            Route::put('/{apiKey}', [\App\Http\Controllers\Admin\ApiKeyController::class, 'update'])->name('update');
-            Route::delete('/{apiKey}', [\App\Http\Controllers\Admin\ApiKeyController::class, 'destroy'])->name('destroy');
-        });
+    Route::prefix('api/api-keys')->name('api.api-keys.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\ApiKeyController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\Admin\ApiKeyController::class, 'store'])->name('store');
+        Route::put('/{apiKey}', [\App\Http\Controllers\Admin\ApiKeyController::class, 'update'])->name('update');
+        Route::delete('/{apiKey}', [\App\Http\Controllers\Admin\ApiKeyController::class, 'destroy'])->name('destroy');
     });
 
     // Webhooks Management
-    Route::middleware('permission:webhooks.manage')->group(function () {
-        Route::get('/webhooks', function () {
-            return Inertia::render('admin/webhooks/index');
-        })->name('webhooks.index');
+    Route::get('/webhooks', function () {
+        return Inertia::render('admin/webhooks/index');
+    })->name('webhooks.index');
 
-        Route::prefix('api/webhooks')->name('api.webhooks.')->group(function () {
-            Route::get('/', [WebhookController::class, 'index'])->name('index');
-            Route::post('/', [WebhookController::class, 'store'])->name('store');
-            Route::get('/{webhook}', [WebhookController::class, 'show'])->name('show');
-            Route::put('/{webhook}', [WebhookController::class, 'update'])->name('update');
-            Route::delete('/{webhook}', [WebhookController::class, 'destroy'])->name('destroy');
-            Route::post('/{webhook}/test', [WebhookController::class, 'test'])->name('test');
-        });
+    Route::prefix('api/webhooks')->name('api.webhooks.')->group(function () {
+        Route::get('/', [WebhookController::class, 'index'])->name('index');
+        Route::post('/', [WebhookController::class, 'store'])->name('store');
+        Route::get('/{webhook}', [WebhookController::class, 'show'])->name('show');
+        Route::put('/{webhook}', [WebhookController::class, 'update'])->name('update');
+        Route::delete('/{webhook}', [WebhookController::class, 'destroy'])->name('destroy');
+        Route::post('/{webhook}/test', [WebhookController::class, 'test'])->name('test');
     });
 
     // Analytics
@@ -161,14 +157,12 @@ Route::middleware([
     });
 
     // Audit Logs
-    Route::middleware('permission:audit-logs.view')->group(function () {
-        Route::get('/audit-logs', function () {
-            return Inertia::render('admin/audit-logs/index');
-        })->name('audit-logs.index');
+    Route::get('/audit-logs', function () {
+        return Inertia::render('admin/audit-logs/index');
+    })->name('audit-logs.index');
 
-        Route::prefix('api/audit-logs')->name('api.audit-logs.')->group(function () {
-            Route::get('/', [AuditLogController::class, 'index'])->name('index');
-        });
+    Route::prefix('api/audit-logs')->name('api.audit-logs.')->group(function () {
+        Route::get('/', [AuditLogController::class, 'index'])->name('index');
     });
 
     // Knowledge Base Management
