@@ -15,7 +15,7 @@ import {
     Calendar,
 } from 'lucide-react';
 
-import AdminLayout from '@/layouts/admin-layout';
+import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import admin from '@/routes/admin';
 import type { BreadcrumbItem } from '@/types';
@@ -93,7 +93,6 @@ type AnalyticsResponse = {
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard().url },
-    { title: 'Admin', href: '/admin' },
     { title: 'Analytics', href: '/admin/analytics' },
 ];
 
@@ -165,19 +164,19 @@ export default function AdminAnalyticsIndex() {
 
     if (loading || !data) {
         return (
-            <AdminLayout breadcrumbs={breadcrumbs}>
+            <AppLayout breadcrumbs={breadcrumbs}>
                 <Head title="Analytics" />
                 <div className="flex items-center justify-center py-12">
                     <RefreshCcw className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-            </AdminLayout>
+            </AppLayout>
         );
     }
 
     const { overview, conversations, performance, queues, agents, trends } = data;
 
     return (
-        <AdminLayout breadcrumbs={breadcrumbs}>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Analytics" />
 
             <div className="flex flex-col gap-6">
@@ -489,6 +488,6 @@ export default function AdminAnalyticsIndex() {
                     </CardContent>
                 </Card>
             </div>
-        </AdminLayout>
+        </AppLayout>
     );
 }
