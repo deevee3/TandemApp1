@@ -31,7 +31,7 @@ interface BillingPageProps extends PageProps {
     paymentMethod: PaymentMethod | null;
     intent: {
         client_secret: string;
-    };
+    } | null;
 }
 
 export default function BillingIndex({ subscription, paymentMethod, intent }: BillingPageProps) {
@@ -167,7 +167,15 @@ export default function BillingIndex({ subscription, paymentMethod, intent }: Bi
                                             ← Back
                                         </Button>
                                     )}
-                                    <PaymentMethodForm clientSecret={intent.client_secret} />
+                                    {intent ? (
+                                        <PaymentMethodForm clientSecret={intent.client_secret} />
+                                    ) : (
+                                        <div className="p-4 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                                            <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                                                Unable to load payment form. Please refresh the page or contact support.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </CardContent>

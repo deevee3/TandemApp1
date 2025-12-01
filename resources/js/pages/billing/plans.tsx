@@ -10,7 +10,8 @@ import { useState, FormEvent } from 'react';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_KEY || '');
+const stripeKey = import.meta.env.VITE_STRIPE_KEY;
+const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 
 interface Plan {
     id: string;
@@ -25,7 +26,7 @@ interface PlansPageProps extends PageProps {
     plans: Plan[];
     intent: {
         client_secret: string;
-    };
+    } | null;
     preselected_plan?: string;
 }
 
@@ -40,6 +41,7 @@ function SubscribeForm({ plan, clientSecret, onCancel }: SubscribeFormProps) {
     const elements = useElements();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [elementReady, setElementReady] = useState(false);
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -104,7 +106,18 @@ function SubscribeForm({ plan, clientSecret, onCancel }: SubscribeFormProps) {
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <PaymentElement />
+                        <div className="min-h-[200px]">
+                            {!elementReady && (
+                                <div className="flex items-center justify-center py-8">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                    <span className="ml-3 text-sm text-muted-foreground">Loading payment form...</span>
+                                </div>
+                            )}
+                            <PaymentElement 
+                                onReady={() => setElementReady(true)} 
+                                onLoadError={(e) => setError(`Failed to load payment form: ${e.error.message}`)}
+                            />
+                        </div>
 
                         {error && (
                             <div className="p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
@@ -116,7 +129,7 @@ function SubscribeForm({ plan, clientSecret, onCancel }: SubscribeFormProps) {
                             <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={!stripe || loading} className="flex-1">
+                            <Button type="submit" disabled={!stripe || !elementReady || loading} className="flex-1">
                                 {loading ? 'Processing...' : 'Subscribe'}
                             </Button>
                         </div>
@@ -135,12 +148,12 @@ export default function BillingPlans({ plans, intent, preselected_plan, auth }: 
         return null;
     });
 
-    const options = {
+    const options = intent ? {
         clientSecret: intent.client_secret,
         appearance: {
             theme: 'stripe' as const,
         },
-    };
+    } : null;
 
     const Layout = auth.user.subscribed ? AppLayout : OnboardingLayout;
 
@@ -201,7 +214,7 @@ export default function BillingPlans({ plans, intent, preselected_plan, auth }: 
                 </div>
             </div>
 
-            {selectedPlan && (
+            {selectedPlan && intent && options && stripePromise && (
                 <Elements stripe={stripePromise} options={options}>
                     <SubscribeForm
                         plan={selectedPlan}
@@ -209,6 +222,27 @@ export default function BillingPlans({ plans, intent, preselected_plan, auth }: 
                         onCancel={() => setSelectedPlan(null)}
                     />
                 </Elements>
+            )}
+
+            {selectedPlan && (!intent || !stripePromise) && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <Card className="w-full max-w-md">
+                        <CardHeader>
+                            <CardTitle>Payment Unavailable</CardTitle>
+                            <CardDescription>
+                                {!stripePromise 
+                                    ? 'Stripe is not configured. Please contact support.'
+                                    : 'Unable to initialize payment. Please try again later or contact support.'
+                                }
+                            </CardDescription>
+                        </CardHeader>
+                        <CardFooter>
+                            <Button variant="outline" onClick={() => setSelectedPlan(null)} className="w-full">
+                                Close
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                </div>
             )}
         </Layout>
     );

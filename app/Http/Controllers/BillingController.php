@@ -17,8 +17,16 @@ class BillingController extends Controller
         $user = $request->user();
         
         $subscription = $user->subscription('default');
-        $paymentMethods = $user->paymentMethods();
-        $defaultPaymentMethod = $user->defaultPaymentMethod();
+        $defaultPaymentMethod = null;
+        $intent = null;
+        
+        try {
+            $defaultPaymentMethod = $user->defaultPaymentMethod();
+            $intent = $user->createSetupIntent();
+        } catch (\Exception $e) {
+            // Log Stripe API errors but continue to render the page
+            \Log::warning('Stripe API error in billing index', ['error' => $e->getMessage()]);
+        }
         
         return Inertia::render('billing/index', [
             'subscription' => $subscription ? [
@@ -31,13 +39,13 @@ class BillingController extends Controller
                 'on_grace_period' => $subscription->onGracePeriod(),
                 'on_trial' => $subscription->onTrial(),
             ] : null,
-            'paymentMethod' => $defaultPaymentMethod ? [
+            'paymentMethod' => $defaultPaymentMethod && $defaultPaymentMethod->card ? [
                 'brand' => $defaultPaymentMethod->card->brand,
                 'last_four' => $defaultPaymentMethod->card->last4,
                 'exp_month' => $defaultPaymentMethod->card->exp_month,
                 'exp_year' => $defaultPaymentMethod->card->exp_year,
             ] : null,
-            'intent' => $user->createSetupIntent(),
+            'intent' => $intent,
         ]);
     }
 
@@ -46,9 +54,16 @@ class BillingController extends Controller
      */
     public function plans(): Response
     {
+        $intent = null;
+        
+        try {
+            $intent = auth()->user()->createSetupIntent();
+        } catch (\Exception $e) {
+            \Log::warning('Stripe API error in billing plans', ['error' => $e->getMessage()]);
+        }
+        
         return Inertia::render('billing/plans', [
-            'intent' => auth()->user()->createSetupIntent(),
-            'preselected_plan' => session('selected_plan'),
+            'intent' => $intent,
             'preselected_plan' => session('selected_plan'),
             'plans' => config('plans'),
         ]);
