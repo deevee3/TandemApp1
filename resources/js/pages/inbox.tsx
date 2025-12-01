@@ -25,6 +25,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 const queueStateFilters: { label: string; value: string | null }[] = [
     { label: 'All', value: null },
     { label: 'Queued', value: 'queued' },
+    { label: 'Bot Active', value: 'bot_active' },
     { label: 'Hot', value: 'hot' },
     { label: 'Completed', value: 'completed' },
 ];

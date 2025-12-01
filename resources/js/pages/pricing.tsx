@@ -1,4 +1,5 @@
 import MarketingLayout from '@/layouts/MarketingLayout';
+import { Link } from '@inertiajs/react';
 import { Check, Shield, Zap } from 'lucide-react';
 
 export default function Pricing() {
@@ -64,13 +65,12 @@ export default function Pricing() {
 
                 <div className="grid gap-8 md:grid-cols-3 mb-32">
                     {plans.map((plan, index) => (
-                        <div 
-                            key={index} 
-                            className={`relative flex flex-col rounded-3xl border p-8 transition-all hover:-translate-y-1 shadow-xl ${
-                                plan.highlight 
-                                    ? 'bg-white/60 border-blue-200 shadow-blue-900/10 scale-105 z-10' 
-                                    : 'bg-white/30 border-white/40 shadow-blue-900/5'
-                            } backdrop-blur-xl`}
+                        <div
+                            key={index}
+                            className={`relative flex flex-col rounded-3xl border p-8 transition-all hover:-translate-y-1 shadow-xl ${plan.highlight
+                                ? 'bg-white/60 border-blue-200 shadow-blue-900/10 scale-105 z-10'
+                                : 'bg-white/30 border-white/40 shadow-blue-900/5'
+                                } backdrop-blur-xl`}
                         >
                             {plan.highlight && (
                                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-4 py-1 text-xs font-bold text-white uppercase tracking-wider">
@@ -96,15 +96,18 @@ export default function Pricing() {
                                 ))}
                             </ul>
 
-                            <button 
-                                className={`w-full rounded-xl py-3 text-sm font-semibold transition-all ${
-                                    plan.highlight
-                                        ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20'
-                                        : 'bg-white/50 text-slate-900 hover:bg-white/80 border border-white/50'
-                                }`}
+                            <Link
+                                href={`/login?plan=${plan.name === 'Starter' ? 'price_basic' :
+                                    plan.name === 'Pro' ? 'price_pro' :
+                                        'price_enterprise'
+                                    }`}
+                                className={`block w-full text-center rounded-xl py-3 text-sm font-semibold transition-all ${plan.highlight
+                                    ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20'
+                                    : 'bg-white/50 text-slate-900 hover:bg-white/80 border border-white/50'
+                                    }`}
                             >
                                 {plan.cta}
-                            </button>
+                            </Link>
                         </div>
                     ))}
                 </div>

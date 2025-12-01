@@ -6,7 +6,6 @@ import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { 
     BarChart3, 
-    BookOpen, 
     Code2,
     FileText, 
     Folder, 
@@ -20,13 +19,7 @@ import {
 import { useMemo } from 'react';
 import AppLogo from './app-logo';
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs',
-        icon: BookOpen,
-    },
-];
+const footerNavItems: NavItem[] = [];
 
 export function AdminSidebar() {
     const page = usePage<{ auth: { permissions?: string[] | null } }>();

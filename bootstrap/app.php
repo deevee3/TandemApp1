@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\EnsurePermission;
+use App\Http\Middleware\EnsureUserIsSubscribed;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Providers\DatabaseServiceProvider;
@@ -24,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'auth.apikey' => AuthenticateApiKey::class,
             'permission' => EnsurePermission::class,
+            'subscribed' => EnsureUserIsSubscribed::class,
         ]);
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);

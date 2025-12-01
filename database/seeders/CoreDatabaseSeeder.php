@@ -14,6 +14,7 @@ class CoreDatabaseSeeder extends Seeder
 
         // Roles
         $roles = collect([
+            ['name' => 'Super Administrator', 'slug' => 'super-admin', 'description' => 'Platform owner with full access, bypasses subscription requirements.'],
             ['name' => 'Administrator', 'slug' => 'admin', 'description' => 'Full platform access.'],
             ['name' => 'Supervisor', 'slug' => 'supervisor', 'description' => 'Oversees queues, QA, and guardrails.'],
             ['name' => 'Human Agent', 'slug' => 'human-agent', 'description' => 'Handles escalated conversations.'],
@@ -51,6 +52,7 @@ class CoreDatabaseSeeder extends Seeder
         $permissionIds = DB::table('permissions')->pluck('id', 'slug');
 
         $rolePermissions = [
+            'super-admin' => $permissionIds->values()->toArray(),
             'admin' => $permissionIds->values()->toArray(),
             'supervisor' => [
                 $permissionIds['dashboard.view'],
@@ -89,7 +91,7 @@ class CoreDatabaseSeeder extends Seeder
 
         DB::table('user_roles')->updateOrInsert([
             'user_id' => $userId,
-            'role_id' => $roleIds['admin'],
+            'role_id' => $roleIds['super-admin'],
         ], [
             'created_at' => $now,
             'updated_at' => $now,

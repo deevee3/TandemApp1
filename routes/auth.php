@@ -6,6 +6,9 @@ use Laravel\WorkOS\Http\Requests\AuthKitLoginRequest;
 use Laravel\WorkOS\Http\Requests\AuthKitLogoutRequest;
 
 Route::get('login', function (AuthKitLoginRequest $request) {
+    if ($request->has('plan')) {
+        session(['selected_plan' => $request->query('plan')]);
+    }
     return $request->redirect();
 })->middleware(['guest'])->name('login');
 

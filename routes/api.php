@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AssignmentController;
+use App\Http\Controllers\Api\BotActiveConversationController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationHandoffController;
 use App\Http\Controllers\Api\ConversationMessageController;
@@ -15,12 +16,16 @@ Route::middleware(['auth.apikey'])->group(function () {
     Route::post('/conversations/{conversation}/resolve', [ConversationResolutionController::class, 'store']);
 
     Route::get('/queues/{queue}/items', [QueueItemController::class, 'index']);
+    Route::get('/conversations/bot-active', [BotActiveConversationController::class, 'index']);
     Route::post('/queues/{queue}/items/{queueItem}/claim', [QueueItemController::class, 'claim']);
 
     Route::post('/assignments/{assignment}/accept', [AssignmentController::class, 'accept']);
     Route::post('/assignments/{assignment}/release', [AssignmentController::class, 'release']);
     Route::post('/assignments/{assignment}/resolve', [AssignmentController::class, 'resolve']);
 });
+
+// Stripe webhook (must be outside auth middleware)
+Route::post('/stripe/webhook', [\Laravel\Cashier\Http\Controllers\WebhookController::class, 'handleWebhook']);
 
 // Routes requiring authenticated user (human agent)
 // Use 'web' middleware group to enable session support for authentication

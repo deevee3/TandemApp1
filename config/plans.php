@@ -1,0 +1,55 @@
+<?php
+
+return [
+    [
+        'id' => 'price_basic',
+        'name' => 'Starter',
+        'price' => 49,
+        'interval' => 'month',
+        'description' => 'Perfect for small teams starting with AI support.',
+        'features' => [
+            'Up to 1,000 conversations/mo',
+            'Basic Agent Runner',
+            'Standard Routing',
+            '7-day Audit History',
+            'Email Support',
+        ],
+        'cta' => 'Start Free Trial',
+        'highlight' => false,
+    ],
+    [
+        'id' => 'price_pro',
+        'name' => 'Pro',
+        'price' => 199,
+        'interval' => 'month',
+        'description' => 'For growing teams needing control and quality.',
+        'features' => [
+            'Up to 10,000 conversations/mo',
+            'Advanced Skills Routing',
+            'Risk-Based QA Sampling',
+            'Policy & PII Guardrails',
+            '90-day Audit History',
+            'Slack Connect',
+        ],
+        'cta' => 'Get Started',
+        'highlight' => true,
+        'popular' => true,
+    ],
+    [
+        'id' => 'price_enterprise',
+        'name' => 'Enterprise',
+        'price' => 'Custom',
+        'interval' => '',
+        'description' => 'Full compliance, SLAs, and dedicated support.',
+        'features' => [
+            'Unlimited conversations',
+            'Custom LLM Fine-tuning',
+            'SLA Management & Alerts',
+            'SSO & RBAC',
+            'HIPAA / SOC2 Compliance',
+            'Dedicated Success Manager',
+        ],
+        'cta' => 'Contact Sales',
+        'highlight' => false,
+    ],
+];

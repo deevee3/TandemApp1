@@ -6,7 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
 import { AgentAuthProvider } from './lib/agent-auth';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'Tandem';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),

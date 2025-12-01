@@ -76,24 +76,29 @@ export function useQueueItems({ queueId, state, page = 1, perPage = 25, apiKey }
         setError(null);
 
         try {
-            const route = Api.QueueItemController.index({
-                queue: queueId,
-            });
+            let url = '';
+
+            if (state === 'bot_active') {
+                url = '/api/conversations/bot-active';
+            } else {
+                const route = Api.QueueItemController.index({
+                    queue: queueId,
+                });
+                url = route.url;
+            }
 
             const query = new URLSearchParams();
             query.set('page', page.toString());
             query.set('per_page', perPage.toString());
 
-            if (state) {
+            if (state && state !== 'bot_active') {
                 query.set('state', state);
             }
 
-            const response = await fetch(`${route.url}?${query.toString()}`, {
+            const response = await fetch(`${url}?${query.toString()}`, {
                 method: 'GET',
                 headers,
             });
-
-            let payload: PaginatedQueueItemsResponse | null = null;
 
             if (!response.ok) {
                 if (response.status === 401) {
@@ -106,7 +111,7 @@ export function useQueueItems({ queueId, state, page = 1, perPage = 25, apiKey }
                 return;
             }
 
-            payload = (await response.json()) as PaginatedQueueItemsResponse;
+            const payload = (await response.json()) as PaginatedQueueItemsResponse;
 
             setItems(payload.data);
             setPagination(payload.meta.pagination);

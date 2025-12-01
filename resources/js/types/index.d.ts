@@ -226,10 +226,15 @@ export interface User {
     name: string;
     email: string;
     avatar?: string;
+    subscribed?: boolean;
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;
     [key: string]: unknown; // This allows for additional properties...
+}
+
+declare global {
+    var route: (name?: string, params?: any, absolute?: boolean) => string;
 }
 
 export interface ApiKeyUserSummary {
@@ -304,3 +309,8 @@ declare module '*.png' {
     const src: string;
     export default src;
 }
+
+export type PageProps<T extends Record<string, unknown> = Record<string, unknown>> = T & {
+    auth: Auth;
+    [key: string]: unknown;
+};

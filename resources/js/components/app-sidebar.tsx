@@ -5,7 +5,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { dashboard, inbox } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BarChart2, Book, Bot, FileText, Key, Layers, LayoutGrid, Lock, MessageSquare, Settings, Shield, Sparkles, Users, Webhook } from 'lucide-react';
+import { BarChart2, Book, Bot, CreditCard, FileText, Key, Layers, LayoutGrid, Lock, MessageSquare, Settings, Shield, Sparkles, Users, Webhook } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -78,6 +78,11 @@ const mainNavItems: NavItem[] = [
         title: 'Settings',
         href: '/settings/appearance', // Using existing settings route
         icon: Settings,
+    },
+    {
+        title: 'Billing',
+        href: '/billing',
+        icon: CreditCard,
     },
 ];
 

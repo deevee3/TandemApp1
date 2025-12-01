@@ -17,7 +17,9 @@ Route::get('/how-it-works', function () {
 })->name('how-it-works');
 
 Route::get('/pricing', function () {
-    return Inertia::render('pricing');
+    return Inertia::render('pricing', [
+        'plans' => config('plans'),
+    ]);
 })->name('pricing');
 
 Route::get('/about', function () {
@@ -39,12 +41,27 @@ $authenticatedMiddleware = array_filter([
 ]);
 
 Route::middleware($authenticatedMiddleware)->group(function () {
-    Route::get('dashboard', \App\Http\Controllers\DashboardController::class)->name('dashboard');
+    // Billing routes (accessible without subscription)
+    Route::prefix('billing')->name('billing.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\BillingController::class, 'index'])->name('index');
+        Route::get('/plans', [\App\Http\Controllers\BillingController::class, 'plans'])->name('plans');
+        Route::post('/subscribe', [\App\Http\Controllers\BillingController::class, 'subscribe'])->name('subscribe');
+        Route::post('/payment-method', [\App\Http\Controllers\BillingController::class, 'updatePaymentMethod'])->name('payment-method');
+        Route::post('/cancel', [\App\Http\Controllers\BillingController::class, 'cancel'])->name('cancel');
+        Route::post('/resume', [\App\Http\Controllers\BillingController::class, 'resume'])->name('resume');
+        Route::get('/invoices', [\App\Http\Controllers\BillingController::class, 'invoices'])->name('invoices');
+        Route::get('/invoice/{invoiceId}', [\App\Http\Controllers\BillingController::class, 'downloadInvoice'])->name('invoice.download');
+    });
 
-    Route::get('inbox', InboxController::class)->name('inbox');
-    Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('conversations.show');
+    // Core app routes (require subscription)
+    Route::middleware(['subscribed'])->group(function () {
+        Route::get('dashboard', \App\Http\Controllers\DashboardController::class)->name('dashboard');
 
-    Route::post('agent-session/token', AgentTokenController::class)->name('agent-session.token');
+        Route::get('inbox', InboxController::class)->name('inbox');
+        Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('conversations.show');
+
+        Route::post('agent-session/token', AgentTokenController::class)->name('agent-session.token');
+    });
 });
 
 require __DIR__.'/settings.php';

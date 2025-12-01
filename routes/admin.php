@@ -12,11 +12,13 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\WorkOS\Http\Middleware\ValidateSessionWithWorkOS;
 
-Route::middleware([
+$adminMiddleware = array_filter([
     'auth',
-    ValidateSessionWithWorkOS::class,
+    app()->environment('local', 'testing') ? null : ValidateSessionWithWorkOS::class,
     // TODO: Add admin permission middleware
-])->prefix('admin')->name('admin.')->group(function () {
+]);
+
+Route::middleware($adminMiddleware)->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', function () {
         return Inertia::render('admin/dashboard');
     })->name('dashboard');
