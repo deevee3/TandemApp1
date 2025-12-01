@@ -28,7 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'subscribed' => EnsureUserIsSubscribed::class,
         ]);
 
-        $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+        $middleware->encryptCookies(except: ['appearance', 'sidebar_state', 'selected_plan']);
 
         $middleware->web(append: [
             HandleAppearance::class,
