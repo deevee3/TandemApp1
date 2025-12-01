@@ -97,6 +97,18 @@ class CoreDatabaseSeeder extends Seeder
             'updated_at' => $now,
         ]);
 
+        // Also assign super-admin role to dvaughnhouse@gmail.com if the user exists
+        $dvaughnhouseUserId = DB::table('users')->where('email', 'dvaughnhouse@gmail.com')->value('id');
+        if ($dvaughnhouseUserId) {
+            DB::table('user_roles')->updateOrInsert([
+                'user_id' => $dvaughnhouseUserId,
+                'role_id' => $roleIds['super-admin'],
+            ], [
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
         // Skills
         $skills = collect([
             ['name' => 'Billing'],

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Authorization\Roles;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -56,7 +57,7 @@ class HandleInertiaRequests extends Middleware
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $user ? array_merge($user->toArray(), [
-                    'subscribed' => $user->subscribed('default'),
+                    'subscribed' => $user->hasRole(Roles::SUPER_ADMIN) || $user->subscribed('default'),
                 ]) : null,
                 'permissions' => $permissions,
             ],
