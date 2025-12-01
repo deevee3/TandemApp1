@@ -32,6 +32,27 @@ class AnalyticsService
     }
 
     /**
+     * Check if we're using SQLite
+     */
+    private function isSqlite(): bool
+    {
+        return $this->connection->getDriverName() === 'sqlite';
+    }
+
+    /**
+     * Get SQL expression for calculating difference in seconds between two datetime columns
+     */
+    private function dateDiffSeconds(string $endColumn, string $startColumn): string
+    {
+        if ($this->isSqlite()) {
+            return "(julianday({$endColumn}) - julianday({$startColumn})) * 86400";
+        }
+        
+        // MySQL/PostgreSQL
+        return "TIMESTAMPDIFF(SECOND, {$startColumn}, {$endColumn})";
+    }
+
+    /**
      * Get dashboard overview metrics
      */
     public function getDashboardMetrics(?Carbon $startDate = null, ?Carbon $endDate = null): array
@@ -95,7 +116,7 @@ class AnalyticsService
         $avgFirstResponse = DB::table('conversations')
             ->whereBetween('created_at', [$startDate, $endDate])
             ->whereNotNull('first_responded_at')
-            ->selectRaw('AVG((julianday(first_responded_at) - julianday(created_at)) * 86400) as avg_seconds')
+            ->selectRaw('AVG(' . $this->dateDiffSeconds('first_responded_at', 'created_at') . ') as avg_seconds')
             ->value('avg_seconds');
 
         $avgResolution = DB::table('conversations')
@@ -105,7 +126,7 @@ class AnalyticsService
             })
             ->whereBetween('conversations.created_at', [$startDate, $endDate])
             ->where('conversations.status', 'resolved')
-            ->selectRaw('AVG((julianday(audit_events.occurred_at) - julianday(conversations.created_at)) * 86400) as avg_seconds')
+            ->selectRaw('AVG(' . $this->dateDiffSeconds('audit_events.occurred_at', 'conversations.created_at') . ') as avg_seconds')
             ->value('avg_seconds');
 
         return [
@@ -214,8 +235,8 @@ class AnalyticsService
                 'queues.id',
                 'queues.name',
                 DB::raw('COUNT(DISTINCT conversations.id) as total_conversations'),
-                DB::raw('SUM(CASE WHEN conversations.status = "resolved" THEN 1 ELSE 0 END) as resolved_count'),
-                DB::raw('AVG(CASE WHEN conversations.first_responded_at IS NOT NULL THEN (julianday(conversations.first_responded_at) - julianday(conversations.created_at)) * 86400 END) as avg_first_response_seconds')
+                DB::raw('SUM(CASE WHEN conversations.status = \'resolved\' THEN 1 ELSE 0 END) as resolved_count'),
+                DB::raw('AVG(CASE WHEN conversations.first_responded_at IS NOT NULL THEN ' . $this->dateDiffSeconds('conversations.first_responded_at', 'conversations.created_at') . ' END) as avg_first_response_seconds')
             )
             ->groupBy('queues.id', 'queues.name')
             ->get()
@@ -252,8 +273,8 @@ class AnalyticsService
                 'users.name',
                 'users.email',
                 DB::raw('COUNT(DISTINCT assignments.conversation_id) as total_assigned'),
-                DB::raw('SUM(CASE WHEN conversations.status = "resolved" THEN 1 ELSE 0 END) as resolved_count'),
-                DB::raw('AVG(CASE WHEN assignments.accepted_at IS NOT NULL THEN (julianday(assignments.accepted_at) - julianday(assignments.assigned_at)) * 86400 END) as avg_accept_seconds')
+                DB::raw('SUM(CASE WHEN conversations.status = \'resolved\' THEN 1 ELSE 0 END) as resolved_count'),
+                DB::raw('AVG(CASE WHEN assignments.accepted_at IS NOT NULL THEN ' . $this->dateDiffSeconds('assignments.accepted_at', 'assignments.assigned_at') . ' END) as avg_accept_seconds')
             )
             ->groupBy('users.id', 'users.name', 'users.email')
             ->get()
@@ -286,12 +307,12 @@ class AnalyticsService
     {
         $dailyStats = DB::table('conversations')
             ->whereBetween('created_at', [$startDate, $endDate])
-            ->selectRaw('
-                DATE(created_at) as date,
-                COUNT(*) as total_conversations,
-                SUM(CASE WHEN status = "resolved" THEN 1 ELSE 0 END) as resolved_count,
-                AVG(CASE WHEN first_responded_at IS NOT NULL THEN (julianday(first_responded_at) - julianday(created_at)) * 86400 END) as avg_first_response_seconds
-            ')
+            ->selectRaw(
+                'DATE(created_at) as date, ' .
+                'COUNT(*) as total_conversations, ' .
+                'SUM(CASE WHEN status = \'resolved\' THEN 1 ELSE 0 END) as resolved_count, ' .
+                'AVG(CASE WHEN first_responded_at IS NOT NULL THEN ' . $this->dateDiffSeconds('first_responded_at', 'created_at') . ' END) as avg_first_response_seconds'
+            )
             ->groupBy(DB::raw('DATE(created_at)'))
             ->orderBy('date')
             ->get()

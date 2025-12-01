@@ -136,3 +136,29 @@ Result: ✅ Success! Data returned correctly.
 - Daily trends
 
 The page displays data in responsive cards, tables, and charts.
+
+---
+
+## Update: Production MySQL Compatibility Fix (Dec 2025)
+
+### Issue
+Analytics page worked locally (SQLite) but failed in production (MySQL) - stuck on loading spinner.
+
+### Root Cause
+The `julianday()` function was hardcoded in raw SQL queries without using the database-agnostic helper method. Also, string literals used double quotes which don't work in strict MySQL mode.
+
+### Fix Applied
+1. **Added helper methods** to `AnalyticsService`:
+   - `isSqlite()` - Detects SQLite driver
+   - `dateDiffSeconds($endCol, $startCol)` - Returns appropriate SQL for date difference:
+     - SQLite: `(julianday(end) - julianday(start)) * 86400`
+     - MySQL: `TIMESTAMPDIFF(SECOND, start, end)`
+
+2. **Updated all raw SQL queries** to use the helper method:
+   - `getOverviewMetrics()` - avg first response & resolution times
+   - `getQueueMetrics()` - avg first response per queue
+   - `getAgentMetrics()` - avg accept time per agent
+   - `getTrendData()` - daily avg first response
+
+3. **Fixed string literals** from double quotes to single quotes for MySQL compatibility:
+   - `"resolved"` → `'resolved'`
