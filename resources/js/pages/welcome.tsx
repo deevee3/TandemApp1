@@ -16,7 +16,7 @@ export default function Welcome() {
                 </p>
 
                 {/* CTA Button */}
-                <div className="mb-16">
+                <div className="mb-16 flex justify-center gap-4">
                     <a
                         href="/pricing"
                         className="inline-flex items-center gap-2 px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-full shadow-lg shadow-blue-900/20 hover:shadow-xl hover:shadow-blue-900/30 transition-all hover:scale-105"
@@ -25,6 +25,12 @@ export default function Welcome() {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                         </svg>
+                    </a>
+                    <a
+                        href="/tandem"
+                        className="inline-flex items-center gap-2 px-8 py-4 text-lg font-semibold text-slate-700 bg-white border border-slate-200 rounded-full shadow-sm hover:bg-slate-50 transition-all hover:scale-105"
+                    >
+                        Learn More
                     </a>
                 </div>
 

@@ -26,6 +26,10 @@ Route::get('/about', function () {
     return Inertia::render('about');
 })->name('about');
 
+Route::get('/tandem', function () {
+    return Inertia::render('tandem');
+})->name('tandem');
+
 // Public chat routes (no authentication required)
 Route::prefix('chat')->name('chat.')->group(function () {
     Route::get('{token}', [ChatController::class, 'show'])->name('show');
